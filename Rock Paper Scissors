@@ -1,0 +1,22 @@
+import random
+
+def player(prev_play, opponent_history=[]):
+    opponent_history.append(prev_play)
+
+    # First move
+    if prev_play == "":
+        return "R"
+
+    # Strategy: Frequency Analysis
+    # Count the frequency of opponent's moves
+    move_counts = {"R": 0, "P": 0, "S": 0}
+    for move in opponent_history:
+        if move in move_counts:
+            move_counts[move] += 1
+
+    # Predict opponent's next move based on their most common move
+    prediction = max(move_counts, key=move_counts.get)
+
+    # Counter the predicted move
+    counter_moves = {"R": "P", "P": "S", "S": "R"}
+    return counter_moves[prediction]
