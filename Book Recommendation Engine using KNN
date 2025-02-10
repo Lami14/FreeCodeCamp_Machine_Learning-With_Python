@@ -1,0 +1,51 @@
+import pandas as pd
+from sklearn.neighbors import NearestNeighbors
+from scipy.sparse import csr_matrix
+
+# Load data
+books = pd.read_csv('books.csv')
+ratings = pd.read_csv('ratings.csv')
+users = pd.read_csv('users.csv')
+
+# Data cleaning
+ratings = ratings[ratings['bookRating'] > 0]
+
+# Filter users with >= 200 ratings and books with >= 100 ratings
+user_counts = ratings['userID'].value_counts()
+ratings = ratings[ratings['userID'].isin(user_counts[user_counts >= 200].index)]
+
+book_counts = ratings['bookID'].value_counts()
+ratings = ratings[ratings['bookID'].isin(book_counts[book_counts >= 100].index)]
+
+# Create pivot table
+book_user_matrix = ratings.pivot_table(index='bookID', columns='userID', values='bookRating').fillna(0)
+
+# Convert to sparse matrix
+book_user_sparse = csr_matrix(book_user_matrix)
+
+# Fit KNN model
+model_knn = NearestNeighbors(metric='cosine', algorithm='brute')
+model_knn.fit(book_user_sparse)
+
+# Mapping bookID to book title
+book_titles = books.set_index('bookID')['bookTitle'].to_dict()
+
+# Recommendation function
+def get_recommends(book_title):
+    book_id = books[books['bookTitle'] == book_title]['bookID'].values[0]
+    book_index = book_user_matrix.index.get_loc(book_id)
+    
+    distances, indices = model_knn.kneighbors(
+        book_user_matrix.iloc[book_index, :].values.reshape(1, -1),
+        n_neighbors=6
+    )
+
+    recommendations = [
+        [book_titles[book_user_matrix.index[idx]], distances[0][i]]
+        for i, idx in enumerate(indices.flatten()) if i != 0
+    ]
+
+    return [book_title, recommendations]
+
+# Test the function
+print(get_recommends("The Queen of the Damned (Vampire Chronicles (Paperback))"))
